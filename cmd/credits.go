@@ -26,6 +26,38 @@ var city string
 var year int
 var promo string
 
+type studentCredits struct {
+	login          string
+	credits        int
+	runningCredits int
+}
+
+func fetchStudentCredits(channel chan studentCredits, client client.IntranetClient, login string) {
+	stud, err := client.FetchStudent(login)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		return
+	}
+	grades, err := client.FetchStudentGrades(login)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		return
+	}
+	runningCredits := 0
+	for _, module := range grades.Modules {
+		if module.Grade != "-" {
+			continue
+		}
+		runningCredits += module.Credits
+	}
+	credits := studentCredits{
+		login:          login,
+		credits:        stud.Credits,
+		runningCredits: runningCredits,
+	}
+	channel <- credits
+}
+
 // creditsCmd represents the credits command
 var creditsCmd = &cobra.Command{
 	Use:   "credits",
@@ -40,25 +72,13 @@ var creditsCmd = &cobra.Command{
 			return
 		}
 		fmt.Printf("login;actuels;engages\n")
+		channel := make(chan studentCredits)
 		for _, student := range students {
-			stud, err := client.FetchStudent(student.Login)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-				return
-			}
-			grades, err := client.FetchStudentGrades(student.Login)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-				return
-			}
-			runningCredits := 0
-			for _, module := range grades.Modules {
-				if module.Grade != "-" {
-					continue
-				}
-				runningCredits += module.Credits
-			}
-			fmt.Printf("%s;%d;%d\n", student.Login, stud.Credits, runningCredits)
+			go fetchStudentCredits(channel, client, student.Login)
+		}
+		for _ = range students {
+			credits := <-channel
+			fmt.Printf("%s;%d;%d\n", credits.login, credits.credits, credits.runningCredits)
 		}
 	},
 }
