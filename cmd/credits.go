@@ -32,7 +32,7 @@ type studentCredits struct {
 	runningCredits int
 }
 
-func fetchStudentCredits(channel chan studentCredits, client client.IntranetClient, login string) {
+func fetchStudentCredits(channel chan studentCredits, client client.IntranetClient, login string, year int) {
 	stud, err := client.FetchStudent(login)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
@@ -45,7 +45,7 @@ func fetchStudentCredits(channel chan studentCredits, client client.IntranetClie
 	}
 	runningCredits := 0
 	for _, module := range grades.Modules {
-		if module.Grade != "-" {
+		if module.ScolarYear != year || module.Grade != "-" {
 			continue
 		}
 		runningCredits += module.Credits
@@ -74,7 +74,7 @@ var creditsCmd = &cobra.Command{
 		fmt.Printf("login;actuels;engages\n")
 		channel := make(chan studentCredits)
 		for _, student := range students {
-			go fetchStudentCredits(channel, client, student.Login)
+			go fetchStudentCredits(channel, client, student.Login, year)
 		}
 		for _ = range students {
 			credits := <-channel
