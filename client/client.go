@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type Module struct {
@@ -25,9 +26,20 @@ type StudentGrades struct {
 }
 
 type Student struct {
+	Login       string  `json:"login"`
+	Fullname    string  `json:"title"`
+	Credits     int     `json:"credits"`
+	GPABachelor float64 `json:"gpa-bachelor"`
+}
+
+type studentJSON struct {
 	Login    string `json:"login"`
 	Fullname string `json:"title"`
 	Credits  int    `json:"credits"`
+	GPA []struct {
+		GPA string   `json:"gpa"`
+		Cycle string `json:"cycle"`
+	}               `json:"gpa"`
 }
 
 type IntranetClient struct {
@@ -83,12 +95,26 @@ func (c IntranetClient) FetchPromotion(city string, year int, promo string) ([]S
 
 func (c IntranetClient) FetchStudent(login string) (Student, error) {
 	URL := fmt.Sprintf("https://intra.epitech.eu/user/%s/?format=json", login)
-	stud := Student{}
+	stud := studentJSON{}
 	err := c.fetch(URL, &stud)
 	if err != nil {
 		return Student{}, err
 	}
-	return stud, nil
+	student := Student{
+		Login:    stud.Login,
+		Fullname: stud.Fullname,
+		Credits:  stud.Credits,
+	}
+	for _, gpa := range stud.GPA {
+		f, err := strconv.ParseFloat(gpa.GPA, 32)
+		if err != nil {
+			return Student{}, err
+		}
+		if gpa.Cycle == "bachelor" {
+			student.GPABachelor = f
+		}
+	}
+	return student, nil
 }
 
 func (c IntranetClient) FetchStudentGrades(login string) (StudentGrades, error) {
