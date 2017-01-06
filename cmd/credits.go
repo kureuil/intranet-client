@@ -1,10 +1,10 @@
-// Copyright © 2016 NAME HERE <EMAIL ADDRESS>
+// Copyright © 2017 Louis Person <lait.kureuil@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://mit-license.org/
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,9 +22,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var city string
-var year int
-var promo string
+var creditsCity string
+var creditsYear int
+var creditsPromo string
 
 type studentCredits struct {
 	login          string
@@ -62,33 +62,33 @@ func fetchStudentCredits(channel chan studentCredits, client client.IntranetClie
 var creditsCmd = &cobra.Command{
 	Use:   "credits",
 	Short: "Fetch credits associated to students of a promotion",
-	Run: func(cmd *cobra.Command, args []string) {
-		client := client.IntranetClient{
-			SessionID: cmd.Flag("sessionid").Value.String(),
-		}
-		students, err := client.FetchPromotion(city, year, promo)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-			return
-		}
-		fmt.Printf("login;actuels;engages\n")
-		channel := make(chan studentCredits)
-		for _, student := range students {
-			go fetchStudentCredits(channel, client, student.Login, year)
-		}
-		for _ = range students {
-			credits := <-channel
-			fmt.Printf("%s;%d;%d\n", credits.login, credits.credits, credits.runningCredits)
-		}
-	},
+	Run:   creditsCmdRun,
+}
+
+func creditsCmdRun(cmd *cobra.Command, args []string) {
+	apiClient := client.IntranetClient{
+		SessionID: cmd.Flag("sessionid").Value.String(),
+	}
+	students, err := apiClient.FetchPromotion(creditsCity, creditsYear, creditsPromo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		return
+	}
+	fmt.Println("login;actuels;engages")
+	channel := make(chan studentCredits)
+	for _, student := range students {
+		student := student
+		go fetchStudentCredits(channel, apiClient, student.Login, creditsYear)
+	}
+	for range students {
+		credits := <-channel
+		fmt.Printf("%s;%d;%d\n", credits.login, credits.credits, credits.runningCredits)
+	}
 }
 
 func init() {
 	RootCmd.AddCommand(creditsCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	creditsCmd.Flags().StringVar(&city, "city", "", "Targeted city (e.g: REN)")
-	creditsCmd.Flags().IntVar(&year, "year", 0, "Target year (e.g: 2016)")
-	creditsCmd.Flags().StringVar(&promo, "promo", "", "Targeted promotion (e.g: tek3)")
+	creditsCmd.Flags().StringVar(&creditsCity, "city", "", "Targeted city (e.g: REN)")
+	creditsCmd.Flags().IntVar(&creditsYear, "year", 0, "Target year (e.g: 2016)")
+	creditsCmd.Flags().StringVar(&creditsPromo, "promo", "", "Targeted promotion (e.g: tek3)")
 }

@@ -1,3 +1,17 @@
+// Copyright © 2017 Louis Person <lait.kureuil@gmail.com>
+//
+// Licensed under the MIT License (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://mit-license.org/
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package client
 
 import (
@@ -30,16 +44,17 @@ type Student struct {
 	Fullname    string  `json:"title"`
 	Credits     int     `json:"credits"`
 	GPABachelor float64 `json:"gpa-bachelor"`
+	GPAMaster   float64 `json:"gpa-master"`
 }
 
 type studentJSON struct {
 	Login    string `json:"login"`
 	Fullname string `json:"title"`
 	Credits  int    `json:"credits"`
-	GPA []struct {
-		GPA string   `json:"gpa"`
+	GPA      []struct {
+		GPA   string `json:"gpa"`
 		Cycle string `json:"cycle"`
-	}               `json:"gpa"`
+	} `json:"gpa"`
 }
 
 type IntranetClient struct {
@@ -72,6 +87,7 @@ func (c IntranetClient) fetch(URL string, payload interface{}) error {
 	return nil
 }
 
+// Fetch all the students from a promotion, given a city a year.
 func (c IntranetClient) FetchPromotion(city string, year int, promo string) ([]Student, error) {
 	offset := 0
 	total := 1
@@ -93,6 +109,7 @@ func (c IntranetClient) FetchPromotion(city string, year int, promo string) ([]S
 	return students, nil
 }
 
+// Fetch a student, given its login (email address).
 func (c IntranetClient) FetchStudent(login string) (Student, error) {
 	URL := fmt.Sprintf("https://intra.epitech.eu/user/%s/?format=json", login)
 	stud := studentJSON{}
@@ -112,11 +129,14 @@ func (c IntranetClient) FetchStudent(login string) (Student, error) {
 		}
 		if gpa.Cycle == "bachelor" {
 			student.GPABachelor = f
+		} else if gpa.Cycle == "master" {
+			student.GPAMaster = f
 		}
 	}
 	return student, nil
 }
 
+// Fetch a student's grades, given the student login (email address)
 func (c IntranetClient) FetchStudentGrades(login string) (StudentGrades, error) {
 	URL := fmt.Sprintf("https://intra.epitech.eu/user/%s/notes/?format=json", login)
 	grades := StudentGrades{}
